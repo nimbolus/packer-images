@@ -1,0 +1,1 @@
+../../common/debian-12.pkr.hcl

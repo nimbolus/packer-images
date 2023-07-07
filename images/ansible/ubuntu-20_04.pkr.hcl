@@ -1,0 +1,1 @@
+../../common/ubuntu-20_04.pkr.hcl

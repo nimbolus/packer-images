@@ -1,0 +1,24 @@
+stages:
+  - lint
+  - build
+  - cleanup
+
+variables:
+  PKR_VAR_networks: '["<network-id>"]'
+  PKR_VAR_flavor: "<flavor-id>"
+
+include: base.gitlab-ci.yml
+
+lint:
+  stage: lint
+  extends: .packerLint
+
+build:
+  stage: build
+  extends: .packerBuild
+  variables:
+    FOLDER: ansible
+
+deleteDuplicates:
+  stage: cleanup
+  extends: .deleteDuplicates

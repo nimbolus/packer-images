@@ -1,0 +1,37 @@
+.packerLint: &packerLint
+  image:
+    name: hashicorp/packer:1.9
+    entrypoint: [""]
+  script:
+    - |
+      find images -mindepth 1 -maxdepth 1 -type d -print0 | xargs -0 -n1 -I '{}' bash -c " \
+        echo linting '{}' ; \
+        packer fmt -diff -check {}" \;
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH'
+
+.packerBuild: &packerBuild
+  resource_group: packer_build
+  image:
+    name: hashicorp/packer:1.9
+    entrypoint: [""]
+  script:
+    - packer build -parallel-builds=1 images/$FOLDER
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
+      changes:
+        - common/**/*
+        - images/$FOLDER/**/*
+        - .gitlab-ci.yml
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $REBUILD_IMAGES == "true"'
+
+.deleteDuplicates: &deleteDuplicates
+  image: openstacktools/openstack-client
+  variables:
+    DO_DELETE: "true"
+    KEEP_N: "1"
+    FILTER_FLAGS: "--tag packer-base"
+  script:
+    - ./os-delete-duplicates.sh
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH'
