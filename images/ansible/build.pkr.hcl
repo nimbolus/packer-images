@@ -2,25 +2,25 @@ build {
   name = "ansible"
 
   source "source.openstack.centos-8-stream" {
-    image_name = "centos-8-stream-ansible-test"
+    image_name = "${var.image_prefix}centos-8-stream-ansible"
   }
   source "source.openstack.centos-9-stream" {
-    image_name = "centos-9-stream-ansible-test"
+    image_name = "${var.image_prefix}centos-9-stream-ansible"
   }
   source "source.openstack.debian-11" {
-    image_name = "debian-11-ansible-test"
+    image_name = "${var.image_prefix}debian-11-ansible"
   }
   source "source.openstack.debian-12" {
-    image_name = "debian-12-ansible-test"
+    image_name = "${var.image_prefix}debian-12-ansible"
   }
   source "source.openstack.fedora-cloud-38" {
-    image_name = "fedora-cloud-38-ansible-test"
+    image_name = "${var.image_prefix}fedora-cloud-38-ansible"
   }
   source "source.openstack.ubuntu-20_04" {
-    image_name = "ubuntu-20.04-ansible-test"
+    image_name = "${var.image_prefix}ubuntu-20.04-ansible"
   }
   source "source.openstack.ubuntu-22_04" {
-    image_name = "ubuntu-22.04-ansible-test"
+    image_name = "${var.image_prefix}ubuntu-22.04-ansible"
   }
 
   # wait for cloud-init
@@ -40,6 +40,7 @@ build {
     inline = [
       "sudo dnf update -y",
       "sudo dnf install -y qemu-guest-agent git python3-pip",
+      "sudo pip3 install ansible-core hvac",
     ]
   }
   provisioner "shell" {
@@ -53,14 +54,27 @@ build {
       "echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections",
       "sudo apt-get update -y",
       "sudo apt-get upgrade -y",
-      "sudo apt-get install -y qemu-guest-agent git python3-pip",
+      "sudo apt-get install -y qemu-guest-agent git",
     ]
   }
-
-  # install ansible
   provisioner "shell" {
+    only = [
+      "openstack.debian-11",
+      "openstack.ubuntu-20_04",
+      "openstack.ubuntu-22_04",
+    ]
     inline = [
-      "sudo pip3 install ansible-base hvac",
+      "sudo apt-get install -y python3-pip",
+      "sudo pip3 install ansible-core hvac",
+    ]
+  }
+  provisioner "shell" {
+    only = [
+      # debian 12 does not allow using pip without venv
+      "openstack.debian-12",
+    ]
+    inline = [
+      "sudo apt-get install -y ansible-core python3-hvac",
     ]
   }
 

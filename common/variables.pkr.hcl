@@ -15,6 +15,10 @@ variable "ssh_ip_version" {
   default = 4
 }
 
+variable "image_prefix" {
+  default = ""
+}
+
 variable "image_visibility" {
   default = "public"
 }
