@@ -75,6 +75,8 @@ build {
     ]
     inline = [
       "sudo apt-get install -y ansible-core python3-hvac",
+      "sudo ln -s /usr/bin/ansible-playbook /usr/local/bin/ansible-playbook",
+      "sudo ln -s /usr/bin/ansible-galaxy /usr/local/bin/ansible-galaxy",
     ]
   }
 
@@ -101,6 +103,28 @@ build {
       "sudo dnf install -y dnf-automatic",
       "sudo systemctl enable dnf-automatic-install.timer",
     ]
+  }
+
+  # add ssh-ca-auth service
+  provisioner "file" {
+    source      = "images/ansible/ssh-ca-auth"
+    destination = "/tmp/ssh-ca-auth"
+  }
+  provisioner "shell" {
+    inline = [
+      "sudo mkdir -p /etc/ansible",
+      "sudo mv /tmp/ssh-ca-auth/playbook.yml /etc/ansible/ssh-ca-auth.yml",
+      "sudo mv /tmp/ssh-ca-auth/ssh-ca-auth.service /etc/systemd/system/ssh-ca-auth.service",
+      "sudo /usr/local/bin/ansible-galaxy install -r /tmp/ssh-ca-auth/requirements.yml",
+      "sudo rm -r /tmp/ssh-ca-auth",
+      "sudo bash -c 'if command -v restorecon &> /dev/null; then restorecon /etc/systemd/system/ssh-ca-auth.service; fi'",
+      "sudo systemctl enable ssh-ca-auth",
+    ]
+  }
+
+  # post script
+  provisioner "shell" {
+    inline = var.post_script
   }
 
   # empty resolv.conf - https://git.centos.org/centos/kickstarts/pull-request/12#

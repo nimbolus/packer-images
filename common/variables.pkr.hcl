@@ -1,38 +1,52 @@
 variable "security_groups" {
-  default = ["default"]
+  description = "security groups for the Packer instance"
+  default     = ["default"]
 }
 
 variable "networks" {
-  type = list(string)
+  description = "networks for the Packer instance"
+  type        = list(string)
 }
 
 variable "floating_ip_network" {
-  type    = string
-  default = null
-}
-
-variable "ssh_ip_version" {
-  default = 4
-}
-
-variable "image_prefix" {
-  default = ""
-}
-
-variable "image_visibility" {
-  default = "public"
-}
-
-variable "image_tags" {
-  default = ["packer-base"]
+  description = "floating IP network for the Packer instance"
+  type        = string
+  default     = null
 }
 
 variable "flavor" {
-  default = "m1.small"
+  description = "flavor for the Packer instance"
+  default     = "m1.small"
 }
 
 variable "config_drive" {
-  default = false
+  description = "use metadata config drive for the Packer instance"
+  default     = false
+}
+
+variable "ssh_ip_version" {
+  description = "IP version used by SSH to connect to the Packer instance"
+  default     = 4
+}
+
+variable "image_prefix" {
+  description = "name prefix for the final image"
+  default     = ""
+}
+
+variable "image_visibility" {
+  description = "visibility of the final image"
+  default     = "public"
+}
+
+variable "image_tags" {
+  description = "tags of the final image"
+  default     = ["packer-base"]
+}
+
+variable "post_script" {
+  description = "optional post script for image customization"
+  default     = ["echo 'do nothing'"]
 }
 
 packer {
