@@ -1,0 +1,5 @@
+roles:
+  - name: ssh
+    src: https://github.com/nimbolus/ansible-role-ssh.git
+collections:
+  - name: ansible.posix

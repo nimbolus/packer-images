@@ -1,0 +1,66 @@
+- name: Setup ssh trusted user ca and host key certificates
+  hosts: localhost
+  tasks:
+    - name: Check for config drive
+      ansible.builtin.stat:
+        path: /dev/sr0
+      register: config_drive
+
+    # load metadata from config drive
+    - name: Load metadata from config drive
+      when: config_drive.stat.exists
+      block:
+        - name: Mount config drive
+          ansible.posix.mount:
+            path: /mnt/config-drive
+            src: /dev/sr0
+            fstype: iso9660
+            opts: ro,noauto
+            state: mounted
+
+        - name: Get instance metadata from drive
+          ansible.builtin.set_fact:
+            metadata: "{{ lookup('file', '/mnt/config-drive/openstack/latest/meta_data.json') | from_json }}"
+            vendordata: "{{ lookup('file', '/mnt/config-drive/openstack/latest/vendor_data2.json') | from_json }}"
+
+        - name: Unmount config drive
+          ansible.posix.mount:
+            path: /mnt/config-drive
+            src: /dev/sr0
+            opts: ro
+            state: absent
+
+    # load metadata from metadata service
+    - name: Get instance metadata from url
+      ansible.builtin.set_fact:
+        metadata: "{{ lookup('url', 'http://169.254.169.254/openstack/latest/meta_data.json') | from_json }}"
+        vendordata: "{{ lookup('url', 'http://169.254.169.254/openstack/latest/vendor_data2.json') | from_json }}"
+      when: not config_drive.stat.exists
+
+    - name: Disable ssh-ca-auth service
+      ansible.builtin.systemd:
+        name: ssh-ca-auth
+        enabled: false
+
+    - name: Check for meta block in metadata
+      ansible.builtin.meta: end_play
+      when: "'meta' not in metadata and 'static' not in vendordata"
+
+    - name: Wait for cloud-init to finish
+      ansible.builtin.wait_for:
+        path: /var/lib/cloud/instance/boot-finished
+        timeout: 3600
+
+    - name: Configure ssh trusted user ca
+      ansible.builtin.include_role:
+        name: ssh
+      vars:
+        ssh_trusted_user_ca: true
+        ssh_trusted_user_ca_url: "{{ metadata.meta.ssh_trusted_user_ca_url | default(vendordata.static.ssh_trusted_user_ca_url) }}"
+        meta_ssh_authorized_principals: "{{ metadata.meta.ssh_authorized_principals | default('{}') | from_json }}"
+        vendor_ssh_authorized_principals: "{{ vendordata.static.ssh_authorized_principals | default('{}') | from_json }}"
+        ssh_authorized_principals: "{{ meta_ssh_authorized_principals | combine(vendor_ssh_authorized_principals, list_merge='append') }}"
+      when: "'ssh_trusted_user_ca_url' in metadata.meta or 'ssh_trusted_user_ca_url' in vendordata.static"
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
