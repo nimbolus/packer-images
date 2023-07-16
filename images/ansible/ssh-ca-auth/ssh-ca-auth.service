@@ -3,7 +3,7 @@ Description=Setup SSH trusted user CA
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/ansible-playbook /etc/ansible/ssh-ca-auth.yml
+ExecStart=/usr/bin/ansible-playbook /etc/ansible/ssh-ca-auth.yml
 RemainAfterExit=true
 
 [Install]

@@ -41,7 +41,7 @@ variable "image_visibility" {
 
 variable "image_tags" {
   description = "tags of the final image"
-  default     = ["packer-base"]
+  default     = []
 }
 
 variable "post_script" {

@@ -39,8 +39,7 @@ build {
     ]
     inline = [
       "sudo dnf update -y",
-      "sudo dnf install -y qemu-guest-agent git python3-pip",
-      "sudo pip3 install ansible-core hvac",
+      "sudo dnf install -y qemu-guest-agent git ansible-core",
     ]
   }
   provisioner "shell" {
@@ -59,24 +58,30 @@ build {
   }
   provisioner "shell" {
     only = [
-      "openstack.debian-11",
       "openstack.ubuntu-20_04",
       "openstack.ubuntu-22_04",
     ]
     inline = [
-      "sudo apt-get install -y python3-pip",
-      "sudo pip3 install ansible-core hvac",
+      "sudo apt-get install -y software-properties-common",
+      "sudo add-apt-repository --yes --update ppa:ansible/ansible",
     ]
   }
   provisioner "shell" {
     only = [
-      # debian 12 does not allow using pip without venv
-      "openstack.debian-12",
+      "openstack.debian-11",
     ]
     inline = [
-      "sudo apt-get install -y ansible-core python3-hvac",
-      "sudo ln -s /usr/bin/ansible-playbook /usr/local/bin/ansible-playbook",
-      "sudo ln -s /usr/bin/ansible-galaxy /usr/local/bin/ansible-galaxy",
+      "sudo apt-get install -y ansible",
+    ]
+  }
+  provisioner "shell" {
+    only = [
+      "openstack.debian-12",
+      "openstack.ubuntu-20_04",
+      "openstack.ubuntu-22_04",
+    ]
+    inline = [
+      "sudo apt-get install -y ansible-core",
     ]
   }
 
@@ -115,7 +120,7 @@ build {
       "sudo mkdir -p /etc/ansible",
       "sudo mv /tmp/ssh-ca-auth/playbook.yml /etc/ansible/ssh-ca-auth.yml",
       "sudo mv /tmp/ssh-ca-auth/ssh-ca-auth.service /etc/systemd/system/ssh-ca-auth.service",
-      "sudo /usr/local/bin/ansible-galaxy install -r /tmp/ssh-ca-auth/requirements.yml",
+      "sudo /usr/bin/ansible-galaxy install -r /tmp/ssh-ca-auth/requirements.yml",
       "sudo rm -r /tmp/ssh-ca-auth",
       "sudo bash -c 'if command -v restorecon &> /dev/null; then restorecon /etc/systemd/system/ssh-ca-auth.service; fi'",
       "sudo systemctl enable ssh-ca-auth",
