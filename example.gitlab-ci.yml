@@ -52,5 +52,8 @@ deleteDuplicates:
     DO_DELETE: "true"
     KEEP_N: "1"
     FILTER_FLAGS: "--tag packer-base"
+  before_script:
+    - git clone https://github.com/nimbolus/packer-images nimbolus-base
   script:
+    - cd nimbolus-base
     - ./os-delete-duplicates.sh
