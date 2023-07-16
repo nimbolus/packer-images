@@ -1,24 +1,56 @@
 stages:
-  - lint
   - build
   - cleanup
 
 variables:
   PKR_VAR_networks: '["<network-id>"]'
   PKR_VAR_flavor: "<flavor-id>"
+  PKR_VAR_image_tags: '["packer-base"]'
 
-include: base.gitlab-ci.yml
-
-lint:
-  stage: lint
-  extends: .packerLint
-
-build:
+buildImages:
+  extends: .buildImagesMatrix
   stage: build
-  extends: .packerBuild
-  variables:
-    FOLDER: ansible
+  parallel:
+    matrix:
+      - IMAGE:
+          - centos-8-stream
+          - centos-9-stream
+          - debian-11
+          - debian-12
+          - fedora-cloud-38
+          - ubuntu-20_04
+          - ubuntu-22_04
+        VARIANT:
+          - ansible
+  rules:
+    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
+      changes:
+        - .gitlab-ci.yml
+    - if: '$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $REBUILD_IMAGES == "true"'
 
 deleteDuplicates:
   stage: cleanup
   extends: .deleteDuplicates
+  rules:
+    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
+
+# Job Templates
+.buildImagesMatrix:
+  image:
+    name: hashicorp/packer:1.9
+    entrypoint: [""]
+  before_script:
+    - git clone https://github.com/nimbolus/packer-images nimbolus-base
+  script:
+    - cd nimbolus-base
+    - packer init images/$VARIANT
+    - packer build -only "$VARIANT.openstack.$IMAGE" images/$VARIANT
+
+.deleteDuplicates:
+  image: openstacktools/openstack-client
+  variables:
+    DO_DELETE: "true"
+    KEEP_N: "1"
+    FILTER_FLAGS: "--tag packer-base"
+  script:
+    - ./os-delete-duplicates.sh
