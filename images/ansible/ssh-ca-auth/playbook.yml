@@ -42,10 +42,6 @@
         name: ssh-ca-auth
         enabled: false
 
-    - name: Check for meta block in metadata
-      ansible.builtin.meta: end_play
-      when: "'meta' not in metadata and 'static' not in vendordata"
-
     - name: Wait for cloud-init to finish
       ansible.builtin.wait_for:
         path: /var/lib/cloud/instance/boot-finished
@@ -60,7 +56,8 @@
         meta_ssh_authorized_principals: "{{ metadata.meta.ssh_authorized_principals | default('{}') | from_json }}"
         vendor_ssh_authorized_principals: "{{ vendordata.static.ssh_authorized_principals | default('{}') | from_json }}"
         ssh_authorized_principals: "{{ meta_ssh_authorized_principals | combine(vendor_ssh_authorized_principals, list_merge='append') }}"
-      when: "'ssh_trusted_user_ca_url' in metadata.meta or 'ssh_trusted_user_ca_url' in vendordata.static"
+      when: "('meta' in metadata and 'ssh_trusted_user_ca_url' in metadata.meta)
+            or ('static' in vendordata and 'ssh_trusted_user_ca_url' in vendordata.static)"
 
     - name: Flush handlers
       ansible.builtin.meta: flush_handlers
