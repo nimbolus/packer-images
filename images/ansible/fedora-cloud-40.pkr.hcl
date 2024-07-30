@@ -1,0 +1,1 @@
+../../common/fedora-cloud-40.pkr.hcl

@@ -1,0 +1,1 @@
+../../common/rocky-linux-9.pkr.hcl

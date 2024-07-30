@@ -1,8 +1,8 @@
 build {
   name = "ansible"
 
-  source "source.openstack.centos-8-stream" {
-    image_name = "${var.image_prefix}centos-8-stream-ansible"
+  source "source.openstack.rocky-linux-9" {
+    image_name = "${var.image_prefix}rocky-linux-9-ansible"
   }
   source "source.openstack.centos-9-stream" {
     image_name = "${var.image_prefix}centos-9-stream-ansible"
@@ -13,14 +13,17 @@ build {
   source "source.openstack.debian-12" {
     image_name = "${var.image_prefix}debian-12-ansible"
   }
-  source "source.openstack.fedora-cloud-38" {
-    image_name = "${var.image_prefix}fedora-cloud-38-ansible"
+  source "source.openstack.fedora-cloud-40" {
+    image_name = "${var.image_prefix}fedora-cloud-40-ansible"
   }
   source "source.openstack.ubuntu-20_04" {
     image_name = "${var.image_prefix}ubuntu-20.04-ansible"
   }
   source "source.openstack.ubuntu-22_04" {
     image_name = "${var.image_prefix}ubuntu-22.04-ansible"
+  }
+  source "source.openstack.ubuntu-24_04" {
+    image_name = "${var.image_prefix}ubuntu-24.04-ansible"
   }
 
   # wait for cloud-init
@@ -33,9 +36,9 @@ build {
   # upgrade and install base packages
   provisioner "shell" {
     only = [
-      "openstack.centos-8-stream",
+      "openstack.rocky-linux-9",
       "openstack.centos-9-stream",
-      "openstack.fedora-cloud-38",
+      "openstack.fedora-cloud-40",
     ]
     inline = [
       "sudo dnf update -y",
@@ -48,6 +51,7 @@ build {
       "openstack.debian-12",
       "openstack.ubuntu-20_04",
       "openstack.ubuntu-22_04",
+      "openstack.ubuntu-24_04",
     ]
     inline = [
       "echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections",
@@ -60,6 +64,7 @@ build {
     only = [
       "openstack.ubuntu-20_04",
       "openstack.ubuntu-22_04",
+      "openstack.ubuntu-24_04",
     ]
     inline = [
       "sudo apt-get install -y software-properties-common",
@@ -79,6 +84,7 @@ build {
       "openstack.debian-12",
       "openstack.ubuntu-20_04",
       "openstack.ubuntu-22_04",
+      "openstack.ubuntu-24_04",
     ]
     inline = [
       "sudo apt-get install -y ansible-core",
@@ -92,6 +98,7 @@ build {
       "openstack.debian-12",
       "openstack.ubuntu-20_04",
       "openstack.ubuntu-22_04",
+      "openstack.ubuntu-24_04",
     ]
     inline = [
       "sudo apt-get install -y unattended-upgrades",
@@ -100,9 +107,9 @@ build {
   }
   provisioner "shell" {
     only = [
-      "openstack.centos-8-stream",
+      "openstack.rocky-linux-9",
       "openstack.centos-9-stream",
-      "openstack.fedora-cloud-38",
+      "openstack.fedora-cloud-40",
     ]
     inline = [
       "sudo dnf install -y dnf-automatic",
@@ -135,7 +142,7 @@ build {
   # empty resolv.conf - https://git.centos.org/centos/kickstarts/pull-request/12#
   provisioner "shell" {
     only = [
-      "openstack.centos-8-stream",
+      "openstack.rocky-linux-9",
       "openstack.centos-9-stream",
     ]
     inline = [
@@ -146,9 +153,9 @@ build {
   # cleaning for smaller image
   provisioner "shell" {
     only = [
-      "openstack.centos-8-stream",
+      "openstack.rocky-linux-9",
       "openstack.centos-9-stream",
-      "openstack.fedora-cloud-38",
+      "openstack.fedora-cloud-40",
     ]
     inline = [
       "sudo dnf autoremove -y && dnf clean all && sudo rm -rf /var/cache/yum",
@@ -160,6 +167,7 @@ build {
       "openstack.debian-12",
       "openstack.ubuntu-20_04",
       "openstack.ubuntu-22_04",
+      "openstack.ubuntu-24_04",
     ]
     inline = [
       "sudo apt-get autoclean",
