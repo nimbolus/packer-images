@@ -1,0 +1,80 @@
+- name: Fetch compose environment secrets from vault
+  hosts: localhost
+  tasks:
+    - name: check for config drive
+      stat:
+        path: /dev/sr0
+      register: config_drive
+
+    # load metadata from config drive
+    - block:
+        - name: Mount config drive
+          ansible.posix.mount:
+            path: /mnt/config-drive
+            src: /dev/sr0
+            fstype: iso9660
+            opts: ro
+            boot: false
+            state: mounted
+
+        - name: Get instance metadata from drive
+          ansible.builtin.set_fact:
+            metadata: "{{ lookup('file', '/mnt/config-drive/openstack/latest/meta_data.json') | from_json }}"
+
+        - name: Unmount config drive
+          ansible.posix.mount:
+            path: /mnt/config-drive
+            src: /dev/sr0
+            opts: ro
+            state: absent
+
+      when: config_drive.stat.exists
+
+    # load metadata from metadata service
+    - name: Get instance metadata from url
+      ansible.builtin.set_fact:
+        metadata: "{{ lookup('url', 'http://169.254.169.254/openstack/latest/meta_data.json') | from_json }}"
+      when: not config_drive.stat.exists
+
+    - name: Fetch Vault token
+      ansible.builtin.uri:
+        url: "{{ metadata.meta.vault_addr }}/v1/auth/openstack/login"
+        method: POST
+        validate_certs: "{{ not metadata.meta.vault_skip_verify | default(true) }}"
+        body_format: form-urlencoded
+        body:
+          instance_id: "{{ metadata.uuid }}"
+          role: "{{ metadata.meta.vault_role }}"
+      register: vault_token
+
+    - name: Fetch compose environment secrets
+      ansible.builtin.uri:
+        url: "{{ metadata.meta.vault_addr }}/v1/{{ vault_kv_engine_path }}/data/{{ vault_kv_prefix }}/{{ item }}"
+        method: GET
+        validate_certs: "{{ not metadata.meta.vault_skip_verify | default(true) }}"
+        headers:
+          "X-Vault-Token": "{{ vault_token.json.auth.client_token }}"
+      vars:
+        vault_kv_engine_path: "{{ metadata.meta.vault_kv_engine_path | default('projects') }}"
+        vault_kv_prefix : "{{ metadata.meta.vault_kv_prefix }}"
+      register: secrets
+      loop: "{{ metadata.meta.podman_compose_stacks | from_json }}"
+
+    - name: Write compose environment files
+      ansible.builtin.copy:
+        dest: /opt/{{ item.item }}/.env
+        mode: "0600"
+        content: |
+          {% for k, v in item.json.data.data.items() %}
+          {{ k }}={{ v }}
+          {% endfor %}
+      loop: "{{ secrets.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Start compose stack
+      ansible.builtin.shell:
+        cmd: podman compose up -d
+        chdir: "/opt/{{ item }}"
+      loop: "{{ metadata.meta.podman_compose_stacks | from_json }}"
+      when: not skip_podman_compose_up | default(false)
