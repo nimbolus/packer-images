@@ -1,0 +1,122 @@
+- name: Fetch compose environment secrets from vault
+  hosts: localhost
+  vars:
+    skip_compose_up: "{{ skip_start | default(false) }}"
+  tasks:
+    - name: check for config drive
+      stat:
+        path: /dev/sr0
+      register: config_drive
+
+    # load metadata from config drive
+    - block:
+        - name: Mount config drive
+          ansible.posix.mount:
+            path: /mnt/config-drive
+            src: /dev/sr0
+            fstype: iso9660
+            opts: ro
+            boot: false
+            state: mounted
+
+        - name: Get instance metadata from drive
+          ansible.builtin.set_fact:
+            metadata: "{{ lookup('file', '/mnt/config-drive/openstack/latest/meta_data.json') | from_json }}"
+
+        - name: Unmount config drive
+          ansible.posix.mount:
+            path: /mnt/config-drive
+            src: /dev/sr0
+            opts: ro
+            state: absent
+
+      when: config_drive.stat.exists
+
+    # load metadata from metadata service
+    - name: Get instance metadata from url
+      ansible.builtin.set_fact:
+        metadata: "{{ lookup('url', 'http://169.254.169.254/openstack/latest/meta_data.json') | from_json }}"
+      when: not config_drive.stat.exists
+
+    - name: Fetch Vault token
+      ansible.builtin.uri:
+        url: "{{ metadata.meta.vault_addr }}/v1/auth/{{ vault_auth_path }}/login"
+        method: POST
+        validate_certs: "{{ not metadata.meta.vault_skip_verify | default(true) }}"
+        body_format: form-urlencoded
+        body:
+          instance_id: "{{ metadata.uuid }}"
+          role: "{{ metadata.meta.vault_auth_role }}"
+      vars:
+        vault_auth_path: "{{ metadata.meta.vault_auth_path | default('openstack') }}"
+      register: vault_token
+
+    # start podman compose stacks
+    - name: Fetch compose stacks list
+      ansible.builtin.set_fact:
+        compose_stacks: "{{ metadata.meta.podman_compose_stacks | from_json }}"
+
+    - name: Fetch compose environment secrets
+      ansible.builtin.uri:
+        url: "{{ metadata.meta.vault_addr }}/v1/{{ vault_kv_engine_path }}/data/{{ vault_kv_prefix }}/{{ item }}"
+        method: GET
+        validate_certs: "{{ not metadata.meta.vault_skip_verify | default(true) }}"
+        headers:
+          "X-Vault-Token": "{{ vault_token.json.auth.client_token }}"
+      vars:
+        vault_kv_engine_path: "{{ metadata.meta.vault_kv_engine_path | default('projects') }}"
+        vault_kv_prefix : "{{ metadata.meta.vault_kv_prefix }}"
+      register: secrets
+      loop: "{{ compose_stacks.values() }}"
+
+    - name: Write compose environment files
+      ansible.builtin.copy:
+        dest: /opt/{{ item.item }}/.env
+        mode: "0600"
+        content: |
+          {% for k, v in secret_data.items() %}
+          {{ k }}={{ v }}
+          {% endfor %}
+      vars:
+        secret_data: "{{ item.json.data.data | default({}) }}"
+      loop: "{{ secrets.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Create systemd services
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/{{ item }}.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description={{ item }} podman compose stack
+          Wants=network-online.target
+          After=network-online.target{% for s in depends_on %} {{ s }}.service{% endfor %}
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=true
+          WorkingDirectory=/opt/{{ item }}
+          ExecStart=/usr/bin/podman compose up -d
+          ExecStop=/usr/bin/podman compose down
+
+          [Install]
+          WantedBy=multi-user.target
+      vars:
+        compose_stack_names: "{{ compose_stacks.values() }}"
+        depends_on: "{{ compose_stack_names[0:idx] }}"
+      loop: "{{ compose_stacks.values() }}"
+      loop_control:
+        index_var: idx
+
+    - name: Reload systemd services
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Start compose stack
+      ansible.builtin.systemd:
+        name: "{{ item }}.service"
+        state: started
+        enabled: true
+      loop: "{{ compose_stacks.values() }}"
+      when: not skip_compose_up

@@ -1,0 +1,1 @@
+../../common/centos-9-stream.pkr.hcl
