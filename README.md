@@ -44,7 +44,8 @@ It assumes that Podman Compose files are located at `/opt/<stack-name>/compose.y
 | Property                | Description                                   | Example                              |
 | ----------------------- | --------------------------------------------- | ------------------------------------ |
 | `vault_addr`            | URL of the Vault server                       | `https://vault.example.com`          |
-| `vault_role`            | Role name for the OpenStack auth plugin       | `example-container-host`             |
+| `vault_auth_path`       | Mount path of the OpenStack auth plugin       | `openstack` (default: `openstack`)   |
+| `vault_auth_role`       | Role name for the OpenStack auth plugin       | `example-container-host`             |
 | `vault_kv_engine_path`  | Mount path of the Vault K/V secrets v2 engine | `kv` (default: `projects`)           |
 | `vault_kv_prefix`       | Path prefix for secrets                       | `project-a/instances/container-host` |
 | `podman_compose_stacks` | Names of Compose stacks                       | `{1="traefik",2="myapp"}`            |

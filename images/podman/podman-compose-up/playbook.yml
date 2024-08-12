@@ -40,13 +40,15 @@
 
     - name: Fetch Vault token
       ansible.builtin.uri:
-        url: "{{ metadata.meta.vault_addr }}/v1/auth/openstack/login"
+        url: "{{ metadata.meta.vault_addr }}/v1/auth/{{ vault_auth_path }}/login"
         method: POST
         validate_certs: "{{ not metadata.meta.vault_skip_verify | default(true) }}"
         body_format: form-urlencoded
         body:
           instance_id: "{{ metadata.uuid }}"
-          role: "{{ metadata.meta.vault_role }}"
+          role: "{{ metadata.meta.vault_auth_role }}"
+      vars:
+        vault_auth_path: "{{ metadata.meta.vault_auth_path | default('openstack') }}"
       register: vault_token
 
     # start podman compose stacks
